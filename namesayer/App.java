@@ -21,6 +21,8 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.stage.Modality;
 import javafx.scene.Node;
+import java.io.File;
+import javafx.animation.PauseTransition;
 
 public class App extends Application {
 
@@ -180,8 +182,6 @@ public class App extends Application {
     }
 
     private void startCreating(String name) {
-        doCommand("ffmpeg", "-f", "lavfi", "-i", "color=c=blue:s=320x240:d=5", "-vf", "drawtext=fontfile=/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf:fontsize=30: fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:text='"+name+"'", name+".mp4"/*, "&> /dev/null"*/);
-        System.out.println("CREATED!");
         promptToRecord(name);
     }
 
@@ -191,7 +191,7 @@ public class App extends Application {
     
         Button recordBtn = new Button("Record");
         recordBtn.setPrefSize(btnWidth, btnHeight);
-        recordBtn.setOnAction(e -> recordAudio());
+        recordBtn.setOnAction(e -> recordAudio(name));
         recordBtn.setPrefSize(btnWidth, btnHeight);
 
         Button cancelBtn = new Button("Cancel");
@@ -207,22 +207,84 @@ public class App extends Application {
 
         Scene dialogScene = new Scene(dialogVbox, 600, 150);
         createWindow.setScene(dialogScene);
-        createWindow.setTitle("New Creation");
+        createWindow.setTitle("Record Audio");
         createWindow.show();
     }
 
 
-    private void recordAudio() {
+    private void recordAudio(String name) {
+        Label promptMessage = new Label("Recording...");
+        ProgressBar progressBar = new ProgressBar();
+
+        VBox dialogVbox2 = new VBox(20);
+        dialogVbox2.setAlignment(Pos.CENTER);
+        dialogVbox2.getChildren().addAll(promptMessage, progressBar);
+
+        Scene dialogScene2 = new Scene(dialogVbox2, 600, 150);
+        createWindow.setScene(dialogScene2);
+        createWindow.setTitle("Recording...");
+        createWindow.show();
+
         doCommand("ffmpeg", "-f", "alsa", "-i", "default", "-t", "5", "_audio.wav" /*&> /dev/null*/);
+
+        // Go to next screen after 5 seconds
+        PauseTransition delay = new PauseTransition(Duration.seconds(5));
+        delay.setOnFinished(event -> promptAfterRecording(name));
+        delay.play();
     }
 
+
+    private void promptAfterRecording(String name) {
+        Label promptMessage = new Label("Choose one of the options below");
+    
+        Button listenBtn = new Button("Listen");
+        listenBtn.setPrefSize(btnWidth, btnHeight);
+        listenBtn.setOnAction(e -> listen());
+        listenBtn.setPrefSize(btnWidth, btnHeight);
+
+        Button recordBtn = new Button("Re-Record");
+        recordBtn.setPrefSize(btnWidth, btnHeight);
+        recordBtn.setOnAction(e -> promptToRecord(name));
+        recordBtn.setPrefSize(btnWidth, btnHeight);
+
+        Button confirmBtn = new Button("Confirm");
+        confirmBtn.setPrefSize(btnWidth, btnHeight);
+        confirmBtn.setOnAction(e -> {
+            makeVideo(name);
+            createWindow.hide();
+        });
+        confirmBtn.setPrefSize(btnWidth, btnHeight);
+
+        HBox btnBox = new HBox(30);
+        btnBox.getChildren().addAll(listenBtn, recordBtn, confirmBtn);
+        btnBox.setAlignment(Pos.CENTER);
+
+        VBox dialogVbox = new VBox(20);
+        dialogVbox.getChildren().addAll(promptMessage, btnBox);
+
+        Scene dialogScene = new Scene(dialogVbox, 600, 150);
+        createWindow.setScene(dialogScene);
+        createWindow.setTitle("Check Audio");
+        createWindow.show();
+    }
+
+    private void listen() {
+        Media sound = new Media(getClass().getResource("_audio.wav").toExternalForm());
+        MediaPlayer soundPlayer = new MediaPlayer(sound);
+        soundPlayer.play();
+    }
+
+
+    private void makeVideo(String name) {
+        doCommand("ffmpeg", "-f", "lavfi", "-i", "color=c=blue:s=320x240:d=5", "-vf", "drawtext=fontfile=/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf:fontsize=30: fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:text='"+name+"'", "_video.mp4"/*, "&> /dev/null"*/);
+        doCommand("ffmpeg", "-i", "_video.mp4", "-i", "_audio.wav", "-c:v", "copy", "-c:a", "aac", "-strict", "experimental", "creations/"+name+".mp4" /*&> /dev/null*/);
+        System.out.println("CREATED!");
+    }
+
+
     private boolean checkName(String name) {
-        if (name.matches("^[a-zA-Z0-9 _-]+$")) {
-            return true;
-        } 
-        else {
-            return false;
-        }
+        boolean out = (name.matches("^[a-zA-Z0-9 _-]+$")) ? true : false;
+        return out;
     }
 
 
