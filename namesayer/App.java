@@ -32,6 +32,7 @@ public class App extends Application {
     String listSelected;
     Double btnWidth = 90.0, btnHeight = 45.0;
     Stage createWindow = new Stage();
+    ObservableList<String> listItems;
 
     public static void main(String[] args) {
         launch(args);
@@ -72,8 +73,8 @@ public class App extends Application {
         buttonBox.getChildren().addAll(playBtn, createBtn, deleteBtn);
 
         ListView<String> creationList = new ListView<String>();
-        ObservableList<String> items = populateList();
-        creationList.setItems(items);
+        listItems = populateList();
+        creationList.setItems(listItems);
 
         creationList.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<String>() {
             @Override
@@ -105,7 +106,7 @@ public class App extends Application {
 
 
     private ObservableList<String> populateList() {
-        ObservableList<String> list = FXCollections.observableArrayList();;
+        ObservableList<String> list = FXCollections.observableArrayList();
 		
 		try {
 			ProcessBuilder builder = new ProcessBuilder("ls", "creations/");
@@ -121,7 +122,7 @@ public class App extends Application {
 			
 			String line = null;
 			while ((errStr == null) && (line = stdoutBuffered.readLine()) != null) {
-				list.add(line);
+				list.add(line.substring(0, line.length() - 4)); // Remove the .mp4 extension
 			}
 			if (errStr != null) {
 				System.out.println("errStr is not null: " + errStr);
@@ -143,6 +144,7 @@ public class App extends Application {
         player.play();
     }
 
+
     private void createCreation(Stage primaryStage) {
 
         Label promptMessage = new Label("Enter a name");
@@ -155,7 +157,12 @@ public class App extends Application {
         confirmBtn.setOnAction(e -> {
             String creationName = enterName.getText().toLowerCase();
             if (checkName(creationName)) {
-                startCreating(creationName);
+                if (creationExists(creationName)) {
+                    promptMessage.setText("That name already exists");
+                }
+                else {
+                    startCreating(creationName);
+                }
             }
             else {
                 promptMessage.setText("Please enter valid name (only letters, digits, underscores and hyphens)");
@@ -181,7 +188,10 @@ public class App extends Application {
 
     }
 
+
+
     private void startCreating(String name) {
+        doCommand("mkdir", "creations");
         promptToRecord(name);
     }
 
@@ -225,6 +235,7 @@ public class App extends Application {
         createWindow.setTitle("Recording...");
         createWindow.show();
 
+        doCommand("rm", "_audio.wav", "_video.mp4");
         doCommand("ffmpeg", "-f", "alsa", "-i", "default", "-t", "5", "_audio.wav" /*&> /dev/null*/);
 
         // Go to next screen after 5 seconds
@@ -276,8 +287,9 @@ public class App extends Application {
 
 
     private void makeVideo(String name) {
-        doCommand("ffmpeg", "-f", "lavfi", "-i", "color=c=blue:s=320x240:d=5", "-vf", "drawtext=fontfile=/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf:fontsize=30: fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:text='"+name+"'", "_video.mp4"/*, "&> /dev/null"*/);
-        doCommand("ffmpeg", "-i", "_video.mp4", "-i", "_audio.wav", "-c:v", "copy", "-c:a", "aac", "-strict", "experimental", "creations/"+name+".mp4" /*&> /dev/null*/);
+        doCommand("ffmpeg", "-f", "lavfi", "-i", "color=c=blue:s=320x240:d=5", "-vf", "drawtext=fontfile=/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf:fontsize=30: fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:text='"+name+"'", "_video.mp4");
+        //doCommand("ffmpeg", "-i", "_video.mp4", "-i", "_audio.wav", "-c:v", "copy", "-c:a", "aac", "-strict", "experimental", "creations/"+name+".mp4" /*&> /dev/null*/);
+        doCommand("ffmpeg", "-i", "_kvideo.mp4", "-i", "_kaudio.wav", "-c:v", "copy", "-c:a", "aac", "-strict", "experimental", "ttttttest.mp4" /*"creations/"+name+".mp4"*/);
         System.out.println("CREATED!");
     }
 
@@ -288,19 +300,26 @@ public class App extends Application {
     }
 
 
+    private boolean creationExists(String name) {
+        boolean out = (listItems.contains(name)) ? true : false;
+        return out;
+    }
+
+
     private void deleteCreation() {
         player.stop();
     }
+
+    // ***************************************************************************************************************************************************
+    // ***************************************************************************************************************************************************
+    // ***************************************************************************************************************************************************
+    // CHECK FOR EXISTING CREATIONS
     
     
     
     private void doCommand(String... cmd) {
         try {
-            // Remove pre-existing temporary files if they exist
-            ProcessBuilder removeBuilder = new ProcessBuilder("rm", "_audio.wav", "_video.mp4");
-            Process removeProcess = removeBuilder.start();
-
-			ProcessBuilder builder = new ProcessBuilder(cmd);
+			ProcessBuilder builder = new ProcessBuilder();
 			Process process = builder.start();
 
 			InputStream stdout = process.getInputStream();
