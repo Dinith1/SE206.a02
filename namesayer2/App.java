@@ -31,12 +31,12 @@ public class App extends Application {
     MediaPlayer player;
     MediaView mediaView;
     String listSelected;
-    Double btnWidth = 90.0, btnHeight = 45.0;
     Stage createWindow = new Stage();
     ListView<String> creationList;
     ObservableList<String> listItems;
     Stage primaryStage;
     Scene mainScene;
+    CommandHandler cmdHandler = new CommandHandler();
 
     public static void main(String[] args) {
         launch(args);
@@ -52,26 +52,20 @@ public class App extends Application {
         base.setAlignment(Pos.CENTER);
 
         HBox creationBox = new HBox(20);
-        creationBox.setAlignment(Pos.CENTER);
-
+        creationBox.setAlignment(Pos.CENTER_LEFT);
+        
         HBox buttonBox = new HBox(30);
         buttonBox.setAlignment(Pos.CENTER);
 
      
-        Button playBtn = new Button("play");
-        playBtn.setMaxWidth(Double.MAX_VALUE);
-        playBtn.setPrefSize(btnWidth, btnHeight);
+        NSButton playBtn = new NSButton("play");
         playBtn.setOnAction(e -> playCreation());
         playBtn.setDisable(true);
 
-        Button createBtn = new Button("create");
-        createBtn.setMaxWidth(Double.MAX_VALUE);
-        createBtn.setPrefSize(btnWidth, btnHeight);
+        NSButton createBtn = new NSButton("create");
         createBtn.setOnAction(e -> createCreation(primaryStage));
         
-        Button deleteBtn = new Button("delete");
-        deleteBtn.setMaxWidth(Double.MAX_VALUE);
-        deleteBtn.setPrefSize(btnWidth, btnHeight);
+        NSButton deleteBtn = new NSButton("delete");
         deleteBtn.setOnAction(e -> deleteCreation());;
         deleteBtn.setDisable(true);
 
@@ -83,15 +77,17 @@ public class App extends Application {
         creationList.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<String>() {
             @Override
             public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
+            	if(newValue == null)
+            		return;
                 System.out.println("ListView selection changed from oldValue = " + oldValue + " to newValue = " + newValue);
-
-                pick = new Media(getClass().getResource("creations/"+newValue+".mp4").toExternalForm());
+            	listSelected = newValue;
+            	
+                pick = new Media(new File(System.getProperty("user.dir")+"/creations/"+listSelected+".mp4").toURI().toString());
                 player = new MediaPlayer(pick);
                 mediaView.setMediaPlayer(player);
 
                 playBtn.setDisable(false);
                 deleteBtn.setDisable(false);
-                listSelected = newValue;
             }
         });
 
@@ -102,10 +98,10 @@ public class App extends Application {
 
         VBox mediaBox = new VBox();
         mediaBox.setAlignment(Pos.CENTER);
-        mediaBox.setBorder(new Border(new BorderStroke(Color.BLACK, BorderStrokeStyle.SOLID, CornerRadii.EMPTY, BorderWidths.DEFAULT)));
         mediaBox.getChildren().add(mediaView);
         
         creationBox.getChildren().addAll(creationList, mediaBox);
+        creationBox.setMargin(creationList, new Insets(20, 20, 20, 20));
 
         base.getChildren().addAll(creationBox, buttonBox);
 
@@ -129,7 +125,7 @@ public class App extends Application {
 
 
     private ObservableList<String> populateList() {
-        doCommand("mkdir creations");
+    	cmdHandler.doCommand("mkdir creations");
         ObservableList<String> list = FXCollections.observableArrayList();
 		
 		try {
@@ -173,8 +169,7 @@ public class App extends Application {
         enterName.setPrefSize(100, 20);
 
 
-        Button confirmBtn = new Button("Confirm");
-        confirmBtn.setPrefSize(btnWidth, btnHeight);
+        NSButton confirmBtn = new NSButton("Confirm");
         confirmBtn.setOnAction(e -> {
             String creationName = enterName.getText().toLowerCase();
             if (checkName(creationName)) {
@@ -189,10 +184,8 @@ public class App extends Application {
                 promptMessage.setText("Please enter valid name (only letters, digits, underscores and hyphens)");
             }
         });
-        confirmBtn.setPrefSize(btnWidth, btnHeight);
 
-        Button cancelBtn = new Button("Cancel");
-        cancelBtn.setPrefSize(btnWidth, btnHeight);
+        NSButton cancelBtn = new NSButton("Cancel");
         cancelBtn.setOnAction(e -> createWindow.hide());
 
         HBox btnBox = new HBox(30);
@@ -212,7 +205,7 @@ public class App extends Application {
 
 
     private void startCreating(String name) {
-        doCommand("mkdir creations");
+        cmdHandler.doCommand("mkdir creations");
         promptToRecord(name);
     }
 
@@ -220,13 +213,10 @@ public class App extends Application {
     private void promptToRecord(String name) {
         Label promptMessage = new Label("Click to start recording yourself saying \"" + name + "\" for 5 seconds");
     
-        Button recordBtn = new Button("Record");
-        recordBtn.setPrefSize(btnWidth, btnHeight);
+        NSButton recordBtn = new NSButton("Record");
         recordBtn.setOnAction(e -> recordAudio(name));
-        recordBtn.setPrefSize(btnWidth, btnHeight);
 
-        Button cancelBtn = new Button("Cancel");
-        cancelBtn.setPrefSize(btnWidth, btnHeight);
+        NSButton cancelBtn = new NSButton("Cancel");
         cancelBtn.setOnAction(e -> createWindow.hide());
 
         HBox btnBox = new HBox(30);
@@ -256,8 +246,8 @@ public class App extends Application {
         createWindow.setTitle("Recording...");
         createWindow.show();
 
-        doCommand("rm _audio.wav _video.mp4");
-        doCommand("ffmpeg -f alsa -i default -t 5 _audio.wav");
+        cmdHandler.removeTempFiles();
+        cmdHandler.doCommand("ffmpeg -f alsa -i default -t 5 _audio.wav");
 
         // Go to next screen after 5 seconds
         PauseTransition delay = new PauseTransition(Duration.seconds(5));
@@ -267,25 +257,23 @@ public class App extends Application {
 
 
     private void promptAfterRecording(String name) {
-        Label promptMessage = new Label("Choose one of the options below");
+        Label promptMessage = new Label("Choose one of the options below");++
     
-        Button listenBtn = new Button("Listen");
-        listenBtn.setPrefSize(btnWidth, btnHeight);
+        NSButton listenBtn = new NSButton("Listen");
         listenBtn.setOnAction(e -> listen());
-        listenBtn.setPrefSize(btnWidth, btnHeight);
 
-        Button recordBtn = new Button("Re-Record");
-        recordBtn.setPrefSize(btnWidth, btnHeight);
+        NSButton recordBtn = new NSButton("Re-Record");
         recordBtn.setOnAction(e -> promptToRecord(name));
-        recordBtn.setPrefSize(btnWidth, btnHeight);
 
-        Button confirmBtn = new Button("Confirm");
-        confirmBtn.setPrefSize(btnWidth, btnHeight);
+        NSButton confirmBtn = new NSButton("Confirm");
         confirmBtn.setOnAction(e -> {
             makeVideo(name);
+            PauseTransition delay = new PauseTransition(Duration.seconds(1));
+            delay.setOnFinished(event -> cmdHandler.removeTempFiles());
+            delay.play();
+            listItems.add(name);
             createWindow.hide();
         });
-        confirmBtn.setPrefSize(btnWidth, btnHeight);
 
         HBox btnBox = new HBox(30);
         btnBox.getChildren().addAll(listenBtn, recordBtn, confirmBtn);
@@ -309,9 +297,14 @@ public class App extends Application {
 
 
     private void makeVideo(String name) {
-        doCommand("ffmpeg -f lavfi -i color=c=blue:s=320x240:d=5 -vf \"drawtext=fontfile=/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf:fontsize=30: fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:text='"+name+"'\" _video.mp4");
-        String command = "ffmpeg -i _video.mp4 -i _audio.wav -c:v copy -c:a aac -strict experimental '"+name+".mp4'";
-        doCommand(command);
+        Process videoProcess = cmdHandler.doCommand("ffmpeg -f lavfi -i color=c=blue:s=320x240:d=5 -vf \"drawtext=fontfile=/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf:fontsize=30: fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:text='"+name+"'\" _video.mp4");
+        try {
+        	videoProcess.waitFor();
+        } catch (InterruptedException e) {
+        	e.printStackTrace();
+        }
+        String command = "ffmpeg -i _video.mp4 -i _audio.wav -c:v copy -c:a aac -strict experimental creations/'"+name+".mp4'";
+        cmdHandler.doCommand(command);        
         System.out.println("CREATED!");
     }
 
@@ -337,16 +330,11 @@ public class App extends Application {
     private void confirmDelete() {
         Label promptMessage = new Label("Are you sure you want to delete '"+listSelected+"'?");
     
-        Button confirmBtn = new Button("Confirm");
-        confirmBtn.setPrefSize(btnWidth, btnHeight);
+        NSButton confirmBtn = new NSButton("Confirm");
         confirmBtn.setOnAction(e -> removeCreation());
-        confirmBtn.setPrefSize(btnWidth, btnHeight);
 
-        Button cancelBtn = new Button("Cancel");
-        cancelBtn.setPrefSize(btnWidth, btnHeight);
+        NSButton cancelBtn = new NSButton("Cancel");
         cancelBtn.setOnAction(e -> createWindow.hide());
-        cancelBtn.setPrefSize(btnWidth, btnHeight);
-
 
         HBox btnBox = new HBox(30);
         btnBox.getChildren().addAll(confirmBtn, cancelBtn);
@@ -363,40 +351,12 @@ public class App extends Application {
 
 
     private void removeCreation() {
-        doCommand("rm creations/'"+listSelected+"'.mp4");
+        cmdHandler.doCommand("rm creations/'"+listSelected+"'.mp4");
         createWindow.hide();
     }  
 
     
     
-    private void doCommand(String cmd) {
-        try {
-			ProcessBuilder builder = new ProcessBuilder("/bin/bash", "-c", cmd);
-			Process process = builder.start();
 
-			InputStream stdout = process.getInputStream();
-			InputStream stderr = process.getErrorStream();
-			
-			BufferedReader stdoutBuffered = new BufferedReader(new InputStreamReader(stdout));
-            BufferedReader stderrBuffered = new BufferedReader(new InputStreamReader(stderr));
-            
-			String errStr = stderrBuffered.readLine();
-			
-			String line = null;
-			while ((errStr == null) && (line = stdoutBuffered.readLine()) != null) {
-				System.out.println(line);
-			}
-			if (errStr != null) {
-				System.out.println("errStr is not null: " + errStr);
-			}
-		}
-		catch (Exception ex) {
-			ex.printStackTrace();
-			System.out.println(cmd + " ***************TRY CATCH FAILED");
-		}
-    }
-
-
-    
 
 }
